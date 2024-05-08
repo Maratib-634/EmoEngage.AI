@@ -1,0 +1,1043 @@
+<<<<<<<<<<<<<<<<<<<<WORKING APP #01>>>>>>>>>>>>>>>>>>>
+
+~~~~~~~~~app.py~~~~~~~~~~~~~~~
+from flask import Flask, render_template, Response
+import cv2
+from deepface import DeepFace
+
+app = Flask(__name__)
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+emotion_model = DeepFace.build_model('Emotion')
+url = 'http://192.168.18.19:4747'
+
+def detect_emotion():
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            face_roi = frame[y:y+h, x:x+w]
+            result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            if result:
+                first_result = result[0]
+                emotion = first_result['emotion']
+                max_key = max(emotion, key=lambda k: emotion[k])
+                cv2.putText(frame, f"Emotion: {max_key}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(detect_emotion(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+~~~~~~~~~index.html~~~~~~~~~~~
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+</head>
+<body>
+    <h1>Emotion Detection</h1>
+    <img src="{{ url_for('video_feed') }}" alt="Emotion Detection">
+</body>
+</html>
+
+
+
+
+<<<<<<<<<<<<<<<<<<<<<<<<VOLUME #02>>>>>>>>>>>>>>>>>>>>>>>
+
+<<<<<app.py  #02 >>>>>
+from flask import Flask, render_template, Response, send_from_directory
+import cv2
+from deepface import DeepFace
+import time
+import matplotlib.pyplot as plt
+import os
+
+app = Flask(__name__)
+STATIC_FOLDER = r'P:\Working Directories\Flask\EmoEngage_3.9\static'
+app.config['STATIC_FOLDER'] = STATIC_FOLDER
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+emotion_model = DeepFace.build_model('Emotion')
+url = 'http://192.168.18.19:4747'
+
+emotion_data = {'time': [], 'anger': [], 'disgust': [], 'fear': [], 'happy': [], 'sad': [], 'surprise': [], 'neutral': []}
+start_time = time.time()
+
+def detect_emotion():
+    cap = cv2.VideoCapture(1)
+    while True:
+        ret, frame = cap.read()
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            face_roi = frame[y:y+h, x:x+w]
+            result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            if result:
+                first_result = result[0]
+                emotion = first_result['emotion']
+                max_key = max(emotion, key=lambda k: emotion[k])
+                cv2.putText(frame, f"Emotion: {max_key}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                current_time = time.time() - start_time
+                emotion_data['time'].append(current_time)
+                for emo in emotion_data.keys():
+                    if emo != 'time':
+                        emotion_data[emo].append(emotion[emo])
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(detect_emotion(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/emotion_graph')
+def emotion_graph():
+    plt.figure(figsize=(10, 6))
+    for emo in emotion_data.keys():
+        if emo != 'time':
+            plt.plot(emotion_data['time'], emotion_data[emo], label=emo)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Emotion')
+    plt.title('Emotion over Time')
+    plt.legend()
+    plt.grid(True)
+    graph_path = os.path.join(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+    plt.savefig(graph_path)  # Save the graph as a PNG file
+    return send_from_directory(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+<<<<<<<<<<<<<index.py vol #02>>>>>>>>>>>>>>>>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            function updateGraph() {
+                $('#graph').attr('src', '/emotion_graph?' + new Date().getTime());
+            }
+            setInterval(updateGraph, 5000); // Update graph every 5 seconds
+        });
+    </script>
+</head>
+<body>
+    <h1>Emotion Detection</h1>
+    <div style="display: flex; justify-content: space-around;">
+        <div>
+            <h2>Webcam Feed</h2>
+            <img src="{{ url_for('video_feed') }}" alt="Webcam Feed" width="640" height="480">
+        </div>
+        <div>
+            <h2>Emotion Graph</h2>
+            <img id="graph" src="{{ url_for('emotion_graph') }}" alt="Emotion Graph" width="640" height="480">
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+<<<<<<<<<<<<<<<<<<<<<<app.py #03>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+from flask import Flask, render_template, Response, send_from_directory
+import cv2
+from deepface import DeepFace
+import matplotlib.pyplot as plt
+import time
+import os
+
+app = Flask(__name__)
+STATIC_FOLDER = r'P:\Working Directories\Flask\EmoEngage_3.9\static'
+app.config['STATIC_FOLDER'] = STATIC_FOLDER
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+url = 'http://192.168.18.19:4747'
+
+emotion_data = {'time': [], 'anger': [], 'disgust': [], 'fear': [], 'happy': [], 'sad': [], 'surprise': [], 'neutral': []}
+start_time = time.time()
+
+def detect_emotion():
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Unable to capture frame")
+            break
+        
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            face_roi = frame[y:y+h, x:x+w]
+            result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            if result:
+                emotion = result[0]['emotion']
+                current_time = time.time() - start_time
+                emotion_data['time'].append(current_time)
+                for emo in emotion_data.keys():
+                    if emo != 'time':
+                        emotion_data[emo].append(emotion.get(emo, 0))  # Ensure emotion exists in the result
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            print("Error: Unable to encode frame")
+            break
+        
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(detect_emotion(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/emotion_graph')
+def emotion_graph():
+    plt.figure(figsize=(10, 6))
+    for emo in emotion_data.keys():
+        if emo != 'time':
+            plt.plot(emotion_data['time'], emotion_data[emo], label=emo)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Emotion')
+    plt.title('Emotion over Time')
+    plt.legend()
+    plt.grid(True)
+    graph_path = os.path.join(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+    plt.savefig(graph_path)  # Save the graph as a PNG file
+    plt.close()  # Close the plot to release resources
+    return send_from_directory(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+<<<<<<<<<<<<<<<<<<<<<<index #03>>>>>>>>>>>>>>>>>>>>>>>>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            function updateGraph() {
+                $('#graph').attr('src', '/emotion_graph?' + new Date().getTime());
+            }
+            setInterval(updateGraph, 5000); // Update graph every 5 seconds
+        });
+    </script>
+</head>
+<body>
+    <h1>Emotion Detection</h1>
+    <div style="display: flex; justify-content: space-around;">
+        <div>
+            <h2>Webcam Feed</h2>
+            <img src="{{ url_for('video_feed') }}" alt="Webcam Feed" width="640" height="480">
+        </div>
+        <div>
+            <h2>Emotion Graph</h2>
+            <img id="graph" src="{{ url_for('emotion_graph') }}" alt="Emotion Graph" width="640" height="480">
+        </div>
+    </div>
+</body>
+</html>
+
+
+<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>
+Two Windows; 1 Video Feed, 1 Emotions Graph
+<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>
+
+"app.py #04":------------------------------------------
+
+from flask import Flask, render_template, Response, send_from_directory
+import cv2
+from deepface import DeepFace
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import time
+import os
+
+app = Flask(__name__)
+STATIC_FOLDER = r'P:\Working Directories\Flask\EmoEngage_3.9\static'
+app.config['STATIC_FOLDER'] = STATIC_FOLDER
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+url = 'http://192.168.18.19:4747'
+
+emotion_data = {'time': [], 'anger': [], 'disgust': [], 'fear': [], 'happy': [], 'sad': [], 'surprise': [], 'neutral': []}
+start_time = time.time()
+
+def detect_emotion():
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Unable to capture frame")
+            break
+        
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            face_roi = frame[y:y+h, x:x+w]
+            result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            if result:
+                emotion = result[0]['emotion']
+                current_time = time.time() - start_time
+                emotion_data['time'].append(current_time)
+                for emo in emotion_data.keys():
+                    if emo != 'time':
+                        emotion_data[emo].append(emotion.get(emo, 0))  # Ensure emotion exists in the result
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            print("Error: Unable to encode frame")
+            break
+        
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(detect_emotion(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/emotion_graph')
+def emotion_graph():
+    plt.switch_backend('Agg')  # Switch backend to Agg
+    plt.figure(figsize=(10, 6))
+    for emo in emotion_data.keys():
+        if emo != 'time':
+            plt.plot(emotion_data['time'], emotion_data[emo], label=emo)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Emotion')
+    plt.title('Emotion over Time')
+    plt.legend()
+    plt.grid(True)
+    graph_path = os.path.join(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+    plt.savefig(graph_path)  # Save the graph as a PNG file
+    plt.close()  # Close the plot to release resources
+    return send_from_directory(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>
+three windows graph, video and student information (Results are not perfect)
+<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<>>>>>>>>>>>>
+
+"app.py":---------------------------
+
+from flask import Flask, render_template, Response, send_from_directory, jsonify
+import cv2
+from deepface import DeepFace
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import time
+import os
+
+app = Flask(__name__)
+STATIC_FOLDER = r'P:\Working Directories\Flask\EmoEngage_3.9\static'
+app.config['STATIC_FOLDER'] = STATIC_FOLDER
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+url = 'http://192.168.18.19:4747'
+
+emotion_data = {'time': [], 'anger': [], 'disgust': [], 'fear': [], 'happy': [], 'sad': [], 'surprise': [], 'neutral': []}
+start_time = time.time()
+
+def calculate_attention_score():
+  
+  # Calculate attention score based on emotion data (modify as needed)
+  total_weight = 0
+  attention_score = 0
+  
+  # Print for debugging
+  print(f"emotion_data.keys(): {emotion_data.keys()}")
+  print(f"emotion_data.values(): {emotion_data.values()}")
+  
+  for emotion, weight_list in emotion_data.items():  
+    if emotion != 'time':
+        weight_list.append(total_weight)
+
+  if total_weight > 0:
+    attention_score /= total_weight  # Normalize by total weight (optional)
+  return attention_score
+
+
+def detect_emotion():
+  cap = cv2.VideoCapture(0)
+  while True:
+    ret, frame = cap.read()
+    if not ret:
+      print("Error: Unable to capture frame")
+      break
+
+    gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+    for (x, y, w, h) in faces:
+      cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+      face_roi = frame[y:y+h, x:x+w]
+      result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+      if result and result['confidence'] > 0.7:  # Filter based on confidence score
+        emotion = result[0]['emotion']
+        print(f"Detected emotion: {emotion}")  # Track detected emotion
+        attention_weight = {
+            'happiness': 1.0,
+            'surprise': 1.0,
+            'anger': 0.5,  # Lower weight for negative emotions
+            'frustration': 0.5,
+            'disgust': 0.25,  # Even lower weight for strong negative emotions
+            'fear': 0.25,
+            'sadness': 0.25,
+            'neutral': 0.0   # Neutral indicates low attention
+        }.get(emotion, 0)  # Default weight for unknown emotions
+
+        # Update emotion data with attention score
+        emotion_data['time'].append(time.time() - start_time)
+        emotion_data[emotion].append(attention_weight)
+
+    ret, buffer = cv2.imencode('.jpg', frame)
+    if not ret:
+      print("Error: Unable to encode frame")
+      break
+
+    frame = buffer.tobytes()
+    yield (b'--frame\r\n'
+           b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/')
+def index():
+  return render_template('index.html')
+
+@app.route('/get_attention_score')
+def get_attention_score():
+  attention_score = calculate_attention_score()
+  return jsonify({'attention_score': attention_score})  # Return attention score as JSON
+
+@app.route('/participants')
+def participants():
+    return render_template('page2.html')
+
+@app.route('/details')
+def details():
+    return render_template('page3.html')
+
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(detect_emotion(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/emotion_graph')
+def emotion_graph():
+    if not emotion_data['time']:
+        return "No data available for plotting"
+    
+    plt.switch_backend('Agg')  # Switch backend to Agg
+    plt.figure(figsize=(10, 6))
+    for emo in emotion_data.keys():
+        if emo != 'time':
+            plt.plot(emotion_data['time'], emotion_data[emo], label=emo)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Emotion')
+    plt.title('Emotion over Time')
+    plt.legend()
+    plt.grid(True)
+    graph_path = os.path.join(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+    plt.savefig(graph_path)  # Save the graph as a PNG file
+    plt.close()  # Close the plot to release resources
+    return send_from_directory(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
+
+
+
+"index.html":----------------------------------------
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emotion Detection with Attention</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script>
+    $(document).ready(function(){
+      function updateGraph() {
+        $('#graph').attr('src', '/emotion_graph?' + new Date().getTime());
+      }
+      function updateAttention() {
+        // Fetch attention score using an appropriate method (e.g., AJAX request)
+        $.ajax({
+          url: '/get_attention_score',  // Replace with your route for fetching attention score
+          success: function(data) {
+            $('#attention-score').text('Attention Score: ' + data);
+          }
+        });
+      }
+      setInterval(updateGraph, 5000); // Update graph every 5 seconds
+      setInterval(updateAttention, 2000); // Update attention score every 2 seconds (adjust as needed)
+    });
+  </script>
+</head>
+<body>
+  <h1>Emotion Detection with Attention</h1>
+  <div style="display: flex; justify-content: space-around;">
+    <div>
+      <h2>Webcam Feed</h2>
+      <img src="{{ url_for('video_feed') }}" alt="Webcam Feed" width="640" height="480">
+    </div>
+    <div>
+      <h2>Emotion Graph</h2>
+      <img id="graph" src="{{ url_for('emotion_graph') }}" alt="Emotion Graph" width="640" height="480">
+    </div>
+    <div>
+      <h2>Attention Score</h2>
+      <p id="attention-score">Attention Score: Loading...</p>
+    </div>
+  </div>
+
+  <p>This  is link to Route 2.</p>
+  <a href="/participants">Go to Participants (Route 2)</a>
+  
+  <p>This  is link to Route 3.</p>
+  <a href="/details">Go to Details (Route 3)</a>
+</body>
+</html>
+
+<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+Three windows, Not Displaying results, No Video Feed, Video Feed is not capturing
+<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+app.py~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
+import cv2
+from flask import Flask, render_template, Response, send_from_directory, jsonify
+from deepface import DeepFace
+import matplotlib.pyplot as plt
+import time
+import os
+
+app = Flask(__name__)
+STATIC_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+app.config['STATIC_FOLDER'] = STATIC_FOLDER
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+emotion_data = {'time': [], 'happiness': [], 'surprise': [], 'anger': [], 'disgust': [], 'fear': [], 'sadness': [], 'neutral': []}
+start_time = time.time()
+
+def calculate_attention_score():
+    """Calculates the overall attention score based on emotion weights."""
+    total_weight = sum(sum(weight_list) for emotion, weight_list in emotion_data.items() if emotion != 'time')
+    attention_score = total_weight / len(emotion_data) if total_weight > 0 else 0
+    return attention_score
+
+def detect_emotion():
+    """Captures video frames, detects faces, analyzes emotions, and updates emotion data."""
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Unable to capture frame")
+            break
+
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            face_roi = frame[y:y + h, x:x + w]
+
+            try:
+                result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            except Exception as e:
+                print(f"Error: Emotion analysis failed - {e}")
+                continue
+
+            if result and isinstance(result, list) and result:
+                first_item = result[0]
+                if isinstance(first_item, dict) and 'emotion' in first_item and 'emotion_score' in first_item:
+                    emotion = first_item['emotion']
+                    emotion_score = first_item['emotion_score']
+                    print(f"Detected emotion: {emotion} with score: {emotion_score}")
+
+                    attention_weights = {
+                        'happiness': 1.0,
+                        'surprise': 1.0,
+                        'anger': 0.5,
+                        'disgust': 0.5,
+                        'fear': 0.5,
+                        'sadness': 0.5,
+                        'neutral': 0.0
+                    }
+
+                    emotion_data['time'].append(time.time() - start_time)
+                    for emo in emotion_data.keys():
+                        if emo != 'time':
+                            emotion_data[emo].append(attention_weights.get(emo, 0))
+                else:
+                    print("Warning: Unexpected format of emotion result")
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            print("Error: Unable to encode frame")
+            break
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n'
+               + frame.tobytes() + b'\r\n')
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/get_attention_score')
+def get_attention_score():
+    """Returns the calculated attention score in JSON format."""
+    attention_score = calculate_attention_score()
+    return jsonify({'attention_score': attention_score})
+
+
+@app.route('/video_feed')
+def video_feed():
+    """Provides the video feed with error handling."""
+    try:
+        return Response(detect_emotion(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    except Exception as e:
+        print(f"Error serving video feed: {e}")
+        return Response(status=500)
+
+
+@app.route('/emotion_graph')
+def emotion_graph():
+    """Generates and serves the emotion graph as a PNG image."""
+    if not emotion_data['time']:
+        return "No data available for plotting"
+
+    plt.switch_backend('Agg')  # Switch backend to Agg
+    plt.figure(figsize=(10, 6))
+    for emo in emotion_data.keys():
+        if emo != 'time':
+            plt.plot(emotion_data['time'], emotion_data[emo], label=emo)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Emotion')
+    plt.title('Emotion over Time')
+    plt.legend()
+    plt.grid(True)
+
+    graph_path = os.path.join(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+    plt.savefig(graph_path)  # Save the graph as a PNG file
+    plt.close()  # Close the plot to release resources
+
+    return send_from_directory(app.config['STATIC_FOLDER'], 'emotion_graph.png')
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+index.html~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EmoEngage.AI</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script>
+    $(document).ready(function(){
+      function updateGraph() {
+        $('#graph').attr('src', '/emotion_graph?' + new Date().getTime());
+      }
+      function updateAttention() {
+        $.ajax({
+          url: '/get_attention_score',
+          success: function(data) {
+            $('#attention-score').text('Attention Score: ' + data.attention_score.toFixed(2));
+          }
+        });
+      }
+      setInterval(updateGraph, 3000); // Update graph every 3 seconds
+      setInterval(updateAttention, 2000); // Update attention score every 2 seconds
+    });
+  </script>
+  <style>
+    body {
+      margin: 0;
+      padding-top: 50px;
+      font-family: Arial, sans-serif;
+      background-color: #f0f6ff;
+      color: #333;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .window {
+      border: 2px solid #4a90e2;
+      border-radius: 10px;
+      background-color: #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .title {
+      background-color: #4a90e2;
+      color: #fff;
+      font-size: 16px;
+      padding: 8px 16px;
+      border-radius: 10px 10px 0 0;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .image {
+      max-width: 100%;
+      height: auto;
+    }
+
+    #attention-score {
+      text-align: center;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">EmoEngage.AI</h1>
+  <div class="container">
+    <div class="window">
+      <div class="title">Webcam Feed</div>
+      <div class="content">
+        <img src="{{ url_for('video_feed') }}" alt="Webcam Feed" class="image">
+      </div>
+    </div>
+    <div class="window">
+      <div class="title">Emotion Graph</div>
+      <div class="content">
+        <img id="graph" src="{{ url_for('static', filename='placeholder.png') }}" alt="Emotion Graph" class="image">
+      </div>
+    </div>
+    <div class="window">
+      <div class="title">Attention Score</div>
+      <div class="content">
+        <p id="attention-score">Attention Score: Loading...</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+
+
+<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<>>>>>
+Threee Windows : Video Feed, Graph, Engagement Status with current Emotion (No Auto Reloading of page)
+<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<>>>>>
+
+app.py~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
+from flask import Flask, render_template, Response
+import cv2
+from deepface import DeepFace
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+app = Flask(__name__)
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+emotion_data = {'time': [], 'angry': [], 'disgust': [], 'fear': [], 'happy': [], 'sad': [], 'surprise': [], 'neutral': []}
+start_time = time.time()
+time_threshold = 20  # Total time threshold (in seconds)
+emotion_interval = 5  # Time interval to capture emotions (in seconds)
+num_emotions = time_threshold // emotion_interval  # Number of emotions to capture
+
+def calculate_attention_score():
+    total_weight = 0
+    for emotion, weight_list in emotion_data.items():
+        if emotion != 'time':
+            total_weight += sum(weight_list)
+    return total_weight
+
+def detect_emotion():
+    cap = cv2.VideoCapture(0)
+    emotion_count = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Unable to capture frame")
+            break
+
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.3, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            face_roi = frame[y:y+h, x:x+w]
+            results = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            for result in results:
+                emotion = result['dominant_emotion']
+                attention_weight = {
+                    'angry': 0.5,
+                    'disgust': 0.25,
+                    'fear': 0.25,
+                    'happy': 0.75,
+                    'sad': 0.35,
+                    'surprise': 1.0,
+                    'neutral': 0.15,
+                }.get(emotion, 0)
+
+                current_time = time.time() - start_time
+                emotion_data['time'].append(current_time)
+                for key in emotion_data.keys():
+                    if key != 'time':
+                        if key == emotion:
+                            emotion_data[key].append(attention_weight)
+                        else:
+                            emotion_data[key].append(0)
+
+                emotion_count += 1
+                return emotion
+
+        if emotion_count >= num_emotions:
+            total_weight = calculate_attention_score()
+            engagement_status = "Engaged" if total_weight > 1.5 else "Not Engaged"
+            return engagement_status
+
+        time.sleep(emotion_interval)
+
+def plot_emotion_graph():
+    if not emotion_data['time']:
+        print("No data available for plotting")
+        return
+    
+    total_emotion_weights = []
+    for i, time_point in enumerate(emotion_data['time']):
+        total_weight = sum([emotion_data[emotion][i] for emotion in emotion_data.keys() if emotion != 'time'])
+        total_emotion_weights.append(total_weight)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(emotion_data['time'], total_emotion_weights, label='Total Emotion Weight', color='blue')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Total Emotion Weight')
+    plt.title('Total Emotion Weight over Time')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('static/graph.png')
+    plt.close()
+
+@app.route('/')
+def index():
+    plot_emotion_graph()
+    emotion = detect_emotion()
+    return render_template('index.html', emotion=emotion)
+
+def gen_frames():
+    camera = cv2.VideoCapture(0)
+    while True:
+        success, frame = camera.read()  # Read a frame from the camera
+        if not success:
+            break
+        else:
+            ret, buffer = cv2.imencode('.jpg', frame)  # Encode the frame as JPEG
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/get_engagement_status')
+def get_engagement_status():
+    total_weight = calculate_attention_score()
+    engagement_status = "Engaged" if total_weight > 1.5 else "Not Engaged"
+    return engagement_status
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+
+index.html~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>EmoEngage.AI</title> 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Add your CSS styles here */
+    body {
+      margin: 0;
+      padding-top: 100px;
+      position: relative;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f6ff; /* Light blue background */
+      color: #333;
+    }
+
+    .container {
+      position: relative;
+      text-align: center;
+    }
+
+    .window {
+      width: 300px;
+      height: 300px;
+      border: 2px solid #4a90e2; /* Blue border */
+      border-radius: 20px; /* Increased border radius */
+      margin: 10px;
+      display: inline-block;
+      position: relative;
+      background-color: #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Increased shadow */
+    }
+
+    .title {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #4a90e2; /* Blue background for title */
+      color: #fff; /* White text color */
+      padding: 5px 10px;
+      border-radius: 10px; /* Increased border radius */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      position: fixed;
+      top: 0;
+      left: 10px;
+      font-weight: bold;
+      color: #fff; /* White text color */
+      background-color: #4a90e2; /* Blue background */
+      padding: 10px;
+      border-radius: 0 0 10px 10px; /* Rounded bottom corners */
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Increased shadow */
+    }
+
+    .top-right {
+      position: fixed;
+      top: 0;
+      right: 10px;
+      list-style: none;
+    }
+
+    .top-right li {
+      display: inline;
+      margin-left: 10px;
+    }
+
+    .top-right a {
+      text-decoration: none;
+      color: #4a90e2; /* Blue link color */
+      background-color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px; /* Increased border radius */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s ease; /* Smooth transition */
+    }
+
+    .top-right a:hover {
+      background-color: #edf3ff; /* Light blue background on hover */
+    }
+  </style>
+</head>
+<body>
+  <h1>EmoEngage.AI</h1>
+  
+  <div class="container">
+    <div class="window" id="videoFeedWindow">
+      <div class="title">Video Feed</div>
+      <img id="videoFeed" src="{{ url_for('video_feed') }}" width="300" height="300">
+    </div>
+    <div class="window" id="graphWindow">
+      <div class="title">Graph</div>
+      <img id="graph" src="{{ url_for('static', filename='graph.png') }}" width="300" height="300">
+    </div>
+    <div class="window" id="engagementWindow">
+      <div class="title">Engagement</div>
+      <p id="engagementStatus">Engagement Status: Loading...</p>
+      <!-- Display detected emotion here -->
+      <p id="detectedEmotion">Detected Emotion: {{ emotion }}</p>
+    </div>
+  </div>
+
+  <!-- Add your JavaScript code here -->
+  <script>
+    // Function to update the engagement status
+    function updateEngagementStatus() {
+      // Make an AJAX request to fetch the updated engagement status
+      fetch('/get_engagement_status')
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById('engagementStatus').innerText = "Engagement Status: " + data;
+        })
+        .catch(error => {
+          console.error('Error fetching engagement status:', error);
+          document.getElementById('engagementStatus').innerText = "Error fetching engagement status";
+        });
+
+      // Schedule the next update after 5 seconds
+      setTimeout(updateEngagementStatus, 5000);
+    }
+
+    // Call the function to start updating the engagement status
+    updateEngagementStatus();
+  </script>
+</body>
+</html>

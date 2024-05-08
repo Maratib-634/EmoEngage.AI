@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EmoEngage.AI</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script>
+    $(document).ready(function(){
+      function updateGraph() {
+        $('#graph').attr('src', '/emotion_graph?' + new Date().getTime());
+      }
+      function updateAttention() {
+        $.ajax({
+          url: '/get_attention_score',
+          success: function(data) {
+            $('#attention-score').text('Attention Score: ' + data.attention_score.toFixed(2));
+          }
+        });
+      }
+      setInterval(updateGraph, 3000); // Update graph every 3 seconds
+      setInterval(updateAttention, 2000); // Update attention score every 2 seconds
+    });
+  </script>
+  <style>
+    body {
+      margin: 0;
+      padding-top: 50px;
+      font-family: Arial, sans-serif;
+      background-color: #f0f6ff;
+      color: #333;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .window {
+      border: 2px solid #4a90e2;
+      border-radius: 10px;
+      background-color: #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .title {
+      background-color: #4a90e2;
+      color: #fff;
+      font-size: 16px;
+      padding: 8px 16px;
+      border-radius: 10px 10px 0 0;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .image {
+      max-width: 100%;
+      height: auto;
+    }
+
+    #attention-score {
+      text-align: center;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">EmoEngage.AI</h1>
+  <div class="container">
+    <div class="window">
+      <div class="title">Webcam Feed</div>
+      <div class="content">
+        <img src="{{ url_for('video_feed') }}" alt="Webcam Feed" class="image">
+      </div>
+    </div>
+    <div class="window">
+      <div class="title">Emotion Graph</div>
+      <div class="content">
+        <img id="graph" src="{{ url_for('static', filename='emotion_graph.png') }}" alt="Emotion Graph" class="image">
+      </div>
+    </div>
+    <div class="window">
+      <div class="title">Attention Score</div>
+      <div class="content">
+        <p id="attention-score">Attention Score: Loading...</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

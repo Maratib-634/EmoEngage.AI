@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>EmoEngage.AI</title> 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding-top: 100px;
+      position: relative;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f6ff; /* Light blue background */
+      color: #333;
+    }
+
+    .container {
+      position: relative;
+      text-align: center;
+    }
+
+    .window {
+      width: 300px;
+      height: 300px;
+      border: 2px solid #4a90e2; /* Blue border */
+      border-radius: 20px; /* Increased border radius */
+      margin: 10px;
+      display: inline-block;
+      position: relative;
+      background-color: #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Increased shadow */
+    }
+
+    .title {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #4a90e2; /* Blue background for title */
+      color: #fff; /* White text color */
+      padding: 5px 10px;
+      border-radius: 10px; /* Increased border radius */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      position: fixed;
+      top: 0;
+      left: 10px;
+      font-weight: bold;
+      color: #fff; /* White text color */
+      background-color: #4a90e2; /* Blue background */
+      padding: 10px;
+      border-radius: 0 0 10px 10px; /* Rounded bottom corners */
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Increased shadow */
+    }
+
+    .top-right {
+      position: fixed;
+      top: 0;
+      right: 10px;
+      list-style: none;
+    }
+
+    .top-right li {
+      display: inline;
+      margin-left: 10px;
+    }
+
+    .top-right a {
+      text-decoration: none;
+      color: #4a90e2; /* Blue link color */
+      background-color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px; /* Increased border radius */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s ease; /* Smooth transition */
+    }
+
+    .top-right a:hover {
+      background-color: #edf3ff; /* Light blue background on hover */
+    }
+  </style>
+</head>
+<body>
+  <h1>EmoEngage.AI</h1>
+  <ul class="top-right">
+    <li><a href="page1.html">Page 1</a></li>
+    <li><a href="page2.html">Page 2</a></li>
+    <li><a href="page3.html">Page 3</a></li>
+  </ul>
+  <div class="container">
+    <div class="window">
+      <div class="title">Video Feed</div>
+    </div>
+    <div class="window">
+      <div class="title">Graph</div>
+    </div>
+    <div class="window">
+      <div class="title">Engagement</div>
+    </div>
+  </div>
+</body>
+</html>
